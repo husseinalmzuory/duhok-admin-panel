@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#145b42" />
+  <title>إدارة دليل دهوك</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>إدارة دليل دهوك</h1>
+      <p>لوحة إدارة المحتوى السياحي المتصلة مباشرة بقاعدة البيانات</p>
+    </div>
+
+    <div class="top-actions">
+      <button id="geoBtn" class="ghost-on-dark">المناطق الإدارية</button>
+      <button id="backupBtn" class="ghost-on-dark">نسخة احتياطية</button>
+      <button id="settingsBtn" class="ghost-on-dark" title="إعدادات الجهاز">⚙</button>
+      <button id="addBtn" class="primary light">+ إضافة مكان</button>
+    </div>
+  </header>
+
+  <main>
+
+    <section class="stats-grid">
+      <article class="stat card">
+        <span>إجمالي المعالم</span>
+        <strong id="totalCount">0</strong>
+      </article>
+
+      <article class="stat card">
+        <span>النشطة</span>
+        <strong id="activeCount">0</strong>
+      </article>
+
+      <article class="stat card">
+        <span>المخفية</span>
+        <strong id="inactiveCount">0</strong>
+      </article>
+
+      <article class="stat card">
+        <span>بإحداثيات مؤكدة</span>
+        <strong id="verifiedCount">0</strong>
+      </article>
+
+      <article class="stat card">
+        <span>النتائج المعروضة</span>
+        <strong id="shownCount">0</strong>
+      </article>
+    </section>
+
+    <section class="toolbar card">
+      <input
+        id="searchInput"
+        type="search"
+        placeholder="ابحث بالعربية أو الكردية أو الإنجليزية..."
+      />
+
+      <select id="districtFilter">
+        <option value="">كل الأقضية</option>
+      </select>
+
+      <select id="categoryFilter">
+        <option value="">كل التصنيفات</option>
+      </select>
+
+      <select id="activeFilter">
+        <option value="">كل الحالات</option>
+        <option value="true">النشطة فقط</option>
+        <option value="false">المخفية فقط</option>
+      </select>
+
+      <select id="sortFilter">
+        <option value="priority_desc">الأولوية: الأعلى أولًا</option>
+        <option value="priority_asc">الأولوية: الأقل أولًا</option>
+        <option value="name_ar">الاسم العربي</option>
+        <option value="updated_desc">آخر تعديل</option>
+      </select>
+
+      <button id="clearFiltersBtn">مسح الفلاتر</button>
+      <button id="refreshBtn">↻ تحديث</button>
+    </section>
+
+    <section id="bulkBar" class="bulkbar card" hidden>
+      <strong>
+        <span id="selectedCount">0</span>
+        محدد
+      </strong>
+
+      <button id="bulkActivateBtn">تفعيل المحدد</button>
+      <button id="bulkHideBtn">إخفاء المحدد</button>
+      <button id="bulkExportBtn">تصدير المحدد CSV</button>
+      <button id="bulkDeleteBtn" class="danger">حذف المحدد</button>
+      <button id="clearSelectionBtn">إلغاء التحديد</button>
+    </section>
+
+    <section id="status" class="status" hidden></section>
+
+    <section class="card table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="select-col">
+              <input
+                id="selectAll"
+                type="checkbox"
+                aria-label="تحديد الكل"
+              />
+            </th>
+
+            <th class="serial-col">#</th>
+            <th>المعلم</th>
+            <th>التصنيف</th>
+            <th>القضاء</th>
+            <th>الناحية</th>
+            <th>الحالة</th>
+            <th>الإحداثيات</th>
+            <th>الأولوية</th>
+            <th>آخر تعديل</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+
+        <tbody id="placesBody"></tbody>
+      </table>
+
+      <div id="emptyState" class="empty" hidden>
+        لا توجد نتائج مطابقة.
+      </div>
+    </section>
+
+  </main>
+
+  <dialog id="editorDialog" class="editor-dialog">
+    <form id="placeForm">
+
+      <div class="dialog-head sticky-head">
+        <div>
+          <h2 id="dialogTitle">إضافة مكان</h2>
+          <small id="editorSubtitle"></small>
+        </div>
+
+        <button
+          type="button"
+          id="closeBtn"
+          class="icon-btn"
+          aria-label="إغلاق"
+        >
+          ×
+        </button>
+      </div>
+
+      <input type="hidden" id="placeId" />
+
+      <nav class="section-nav">
+        <a href="#sec-basic">الأساسيات</a>
+        <a href="#sec-descriptions">الأوصاف</a>
+        <a href="#sec-location">الموقع</a>
+        <a href="#sec-visit">الزيارة</a>
+        <a href="#sec-images">الصور</a>
+        <a href="#sec-meta">معلومات</a>
+      </nav>
+
+      <fieldset id="sec-basic">
+        <legend>المعلومات الأساسية</legend>
+
+        <div class="grid3">
+
+          <label>
+            الاسم بالعربية *
+            <input
+              id="name_ar"
+              required
+              maxlength="180"
+            />
+          </label>
+
+          <label>
+            الاسم بالكردية *
+            <input
+              id="name_ku"
+              required
+              maxlength="180"
+            />
+          </label>
+
+          <label>
+            الاسم بالإنجليزية *
+            <input
+              id="name_en"
+              required
+              maxlength="180"
+              dir="ltr"
+            />
+          </label>
+
+          <label>
+            التصنيف *
+            <select id="category" required></select>
+          </label>
+
+          <label>
+            الأولوية 0–100
+            <input
+              id="priority_score"
+              type="number"
+              min="0"
+              max="100"
+              value="0"
+            />
+          </label>
+
+          <label>
+            الحالة
+            <select id="is_active_select">
+              <option value="true">نشط في التطبيق</option>
+              <option value="false">مخفي</option>
+            </select>
+          </label>
+
+        </div>
+      </fieldset>
+
+      <fieldset id="sec-descriptions">
+        <legend>الأوصاف</legend>
+
+        <h3>الوصف المختصر</h3>
+
+        <div class="grid3">
+
+          <label>
+            العربية
+            <textarea
+              id="short_description_ar"
+              rows="3"
+              maxlength="500"
+            ></textarea>
+            <span
+              class="counter"
+              data-for="short_description_ar"
+            ></span>
+          </label>
+
+          <label>
+            الكردية
+            <textarea
+              id="short_description_ku"
+              rows="3"
+              maxlength="500"
+            ></textarea>
+            <span
+              class="counter"
+              data-for="short_description_ku"
+            ></span>
+          </label>
+
+          <label>
+            الإنجليزية
+            <textarea
+              id="short_description_en"
+              rows="3"
+              maxlength="500"
+              dir="ltr"
+            ></textarea>
+            <span
+              class="counter"
+              data-for="short_description_en"
+            ></span>
+          </label>
+
+        </div>
+
+        <h3>الوصف الكامل *</h3>
+
+        <div class="grid3">
+
+          <label>
+            العربية
+            <textarea
+              id="description_ar"
+              rows="8"
+              required
+            ></textarea>
+          </label>
+
+          <label>
+            الكردية
+            <textarea
+              id="description_ku"
+              rows="8"
+              required
+            ></textarea>
+          </label>
+
+          <label>
+            الإنجليزية
+            <textarea
+              id="description_en"
+              rows="8"
+              required
+              dir="ltr"
+            ></textarea>
+          </label>
+
+        </div>
+      </fieldset>
+
+      <fieldset id="sec-location">
+        <legend>الموقع الإداري والإحداثيات</legend>
+
+        <div class="grid3">
+
+          <label>
+            المحافظة
+            <select id="governorate_id"></select>
+          </label>
+
+          <label>
+            القضاء
+            <select id="district_id"></select>
+          </label>
+
+          <label>
+            الناحية
+            <select id="subdistrict_id"></select>
+          </label>
+
+        </div>
+
+        <div class="coordinate-paste-box">
+
+          <label>
+            ألصق الإحداثيات المنسوخة من Google Maps
+
+            <input
+              id="coordinatesPaste"
+              type="text"
+              dir="ltr"
+              autocomplete="off"
+              placeholder="36.79106398684363, 42.91140710412968"
+            />
+          </label>
+
+          <p class="hint">
+            في Google Maps اضغط بزر الفأرة الأيمن على الموقع،
+            ثم اضغط على الإحداثيات لنسخها، وبعدها ألصقها هنا.
+            سيتم فصل Latitude وLongitude تلقائيًا.
+          </p>
+
+        </div>
+
+        <div class="grid3">
+
+          <label>
+            Latitude
+            <input
+              id="latitude"
+              type="number"
+              step="any"
+              min="-90"
+              max="90"
+              dir="ltr"
+            />
+          </label>
+
+          <label>
+            Longitude
+            <input
+              id="longitude"
+              type="number"
+              step="any"
+              min="-180"
+              max="180"
+              dir="ltr"
+            />
+          </label>
+
+          <label class="check">
+            <input
+              id="coordinates_verified"
+              type="checkbox"
+            />
+            الإحداثيات مؤكدة
+          </label>
+
+        </div>
+
+        <div class="map-actions">
+
+          <button
+            type="button"
+            id="copyCoordsBtn"
+          >
+            نسخ الإحداثيات
+          </button>
+
+          <button
+            type="button"
+            id="openMapsBtn"
+          >
+            فتح الإحداثيات في Google Maps
+          </button>
+
+          <button
+            type="button"
+            id="clearCoordsBtn"
+          >
+            مسح الإحداثيات
+          </button>
+
+        </div>
+
+      </fieldset>
+
+      <fieldset id="sec-visit">
+        <legend>معلومات الزيارة والتواصل</legend>
+
+        <div class="grid3">
+
+          <label>
+            أفضل موسم
+            <select id="best_season">
+              <option value="">— غير محدد —</option>
+              <option value="spring">الربيع</option>
+              <option value="summer">الصيف</option>
+              <option value="autumn">الخريف</option>
+              <option value="winter">الشتاء</option>
+              <option value="all_year">طوال السنة</option>
+            </select>
+          </label>
+
+          <label>
+            الصعوبة
+            <input
+              id="difficulty"
+              list="difficultyList"
+              maxlength="80"
+            />
+          </label>
+
+          <label>
+            مدة الزيارة بالدقائق
+            <input
+              id="visit_duration_minutes"
+              type="number"
+              min="0"
+              max="1440"
+            />
+          </label>
+
+          <label>
+            الهاتف
+            <input
+              id="phone"
+              inputmode="tel"
+              maxlength="40"
+              dir="ltr"
+            />
+          </label>
+
+          <label>
+            واتساب
+            <input
+              id="whatsapp"
+              inputmode="tel"
+              maxlength="40"
+              dir="ltr"
+            />
+          </label>
+
+          <label class="check">
+            <input
+              id="family_friendly"
+              type="checkbox"
+              checked
+            />
+            مناسب للعائلات
+          </label>
+
+        </div>
+
+        <h3>رسوم الدخول</h3>
+
+        <div class="grid3">
+
+          <label>
+            العربية
+            <input
+              id="entry_fee_text_ar"
+              maxlength="160"
+            />
+          </label>
+
+          <label>
+            الكردية
+            <input
+              id="entry_fee_text_ku"
+              maxlength="160"
+            />
+          </label>
+
+          <label>
+            الإنجليزية
+            <input
+              id="entry_fee_text_en"
+              maxlength="160"
+              dir="ltr"
+            />
+          </label>
+
+        </div>
+      </fieldset>
+
+      <fieldset id="sec-images">
+        <legend>الصور</legend>
+
+        <div
+          id="imagesNeedSave"
+          class="notice"
+        >
+          احفظ المكان أولًا، ثم ستتمكن من رفع صورة الغلاف وصور المعرض.
+        </div>
+
+        <div id="imagesPanel" hidden>
+
+          <div class="image-upload-row">
+
+            <label class="file-label">
+              رفع صورة غلاف
+              <input
+                id="coverFile"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+              />
+            </label>
+
+            <label class="file-label">
+              إضافة صور للمعرض
+              <input
+                id="galleryFiles"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+              />
+            </label>
+
+            <span class="hint">
+              JPEG/PNG/WebP، حتى 5MB للصورة.
+            </span>
+
+          </div>
+
+          <div
+            id="imageGrid"
+            class="image-grid"
+          ></div>
+
+        </div>
+      </fieldset>
+
+      <details
+        id="sec-meta"
+        class="meta-box"
+      >
+
+        <summary>معلومات السجل</summary>
+
+        <div class="meta-grid">
+
+          <div>
+            <span>ID</span>
+            <code id="meta_id">—</code>
+          </div>
+
+          <div>
+            <span>أُنشئ</span>
+            <b id="meta_created">—</b>
+          </div>
+
+          <div>
+            <span>آخر تعديل</span>
+            <b id="meta_updated">—</b>
+          </div>
+
+          <div>
+            <span>أرسله</span>
+            <b id="meta_submitter">—</b>
+          </div>
+
+          <div>
+            <span>تاريخ الإرسال</span>
+            <b id="meta_submitted">—</b>
+          </div>
+
+          <div>
+            <span>تاريخ الاعتماد</span>
+            <b id="meta_approved">—</b>
+          </div>
+
+        </div>
+
+      </details>
+
+      <datalist id="difficultyList">
+        <option value="easy"></option>
+        <option value="moderate"></option>
+        <option value="hard"></option>
+        <option value="سهل"></option>
+        <option value="متوسط"></option>
+        <option value="صعب"></option>
+      </datalist>
+
+      <div class="dialog-actions sticky-actions">
+
+        <span
+          id="dirtyNote"
+          class="dirty-note"
+          hidden
+        >
+          هناك تغييرات غير محفوظة
+        </span>
+
+        <button
+          type="button"
+          id="cancelBtn"
+        >
+          إغلاق
+        </button>
+
+        <button
+          type="button"
+          id="duplicateBtn"
+          hidden
+        >
+          إنشاء نسخة
+        </button>
+
+        <button
+          type="submit"
+          class="primary"
+          id="saveBtn"
+        >
+          حفظ التغييرات
+        </button>
+
+      </div>
+
+    </form>
+  </dialog>
+
+  <dialog
+    id="geoDialog"
+    class="medium-dialog"
+  >
+
+    <div class="dialog-shell">
+
+      <div class="dialog-head">
+
+        <div>
+          <h2>المناطق الإدارية</h2>
+          <small>
+            إدارة المحافظة والأقضية والنواحي التي تظهر في قوائم الأماكن.
+          </small>
+        </div>
+
+        <button
+          type="button"
+          id="geoCloseBtn"
+          class="icon-btn"
+        >
+          ×
+        </button>
+
+      </div>
+
+      <div class="geo-columns">
+
+        <section>
+
+          <div class="geo-title">
+            <h3>المحافظات</h3>
+            <button data-unit-add="governorate">
+              + إضافة
+            </button>
+          </div>
+
+          <div
+            id="govList"
+            class="unit-list"
+          ></div>
+
+        </section>
+
+        <section>
+
+          <div class="geo-title">
+            <h3>الأقضية</h3>
+            <button data-unit-add="district">
+              + إضافة
+            </button>
+          </div>
+
+          <label>
+            المحافظة
+            <select id="geoGovFilter"></select>
+          </label>
+
+          <div
+            id="distList"
+            class="unit-list"
+          ></div>
+
+        </section>
+
+        <section>
+
+          <div class="geo-title">
+            <h3>النواحي</h3>
+            <button data-unit-add="subdistrict">
+              + إضافة
+            </button>
+          </div>
+
+          <label>
+            القضاء
+            <select id="geoDistFilter"></select>
+          </label>
+
+          <div
+            id="subdistList"
+            class="unit-list"
+          ></div>
+
+        </section>
+
+      </div>
+
+    </div>
+  </dialog>
+
+  <dialog
+    id="unitDialog"
+    class="small-dialog"
+  >
+
+    <form id="unitForm">
+
+      <div class="dialog-head">
+
+        <h2 id="unitTitle">
+          إضافة
+        </h2>
+
+        <button
+          type="button"
+          id="unitCloseBtn"
+          class="icon-btn"
+        >
+          ×
+        </button>
+
+      </div>
+
+      <input
+        type="hidden"
+        id="unitType"
+      />
+
+      <input
+        type="hidden"
+        id="unitId"
+      />
+
+      <label
+        id="unitParentLabel"
+        hidden
+      >
+        يتبع إلى
+        <select id="unitParent"></select>
+      </label>
+
+      <label>
+        الاسم العربي
+        <input
+          id="unitNameAr"
+          required
+        />
+      </label>
+
+      <label>
+        الاسم الكردي
+        <input
+          id="unitNameKu"
+          required
+        />
+      </label>
+
+      <label>
+        الاسم الإنجليزي
+        <input
+          id="unitNameEn"
+          required
+          dir="ltr"
+        />
+      </label>
+
+      <div class="dialog-actions">
+
+        <button
+          type="button"
+          id="unitCancelBtn"
+        >
+          إلغاء
+        </button>
+
+        <button
+          type="submit"
+          class="primary"
+        >
+          حفظ
+        </button>
+
+      </div>
+
+    </form>
+  </dialog>
+
+  <dialog
+    id="settingsDialog"
+    class="small-dialog"
+  >
+
+    <div class="dialog-shell">
+
+      <div class="dialog-head">
+
+        <h2>
+          إعدادات الجهاز
+        </h2>
+
+        <button
+          type="button"
+          id="settingsCloseBtn"
+          class="icon-btn"
+        >
+          ×
+        </button>
+
+      </div>
+
+      <p>
+        مفتاح الإدارة محفوظ في هذا المتصفح فقط.
+        يمكنك مسحه إذا انتقل الجهاز لشخص آخر.
+      </p>
+
+      <button
+        id="forgetSecretBtn"
+        class="danger wide"
+      >
+        مسح مفتاح الإدارة من هذا الجهاز
+      </button>
+
+      <p class="hint">
+        الإصدار: Final 1.0
+      </p>
+
+    </div>
+  </dialog>
+
+  <dialog
+    id="secretDialog"
+    class="small-dialog"
+  >
+
+    <form id="secretForm">
+
+      <h2>
+        فتح لوحة الإدارة
+      </h2>
+
+      <p>
+        أدخل مفتاح الإدارة.
+        سيُحفظ محليًا على هذا الجهاز.
+      </p>
+
+      <label>
+        مفتاح الإدارة
+
+        <input
+          id="secretInput"
+          type="password"
+          required
+          autocomplete="off"
+          dir="ltr"
+        />
+
+      </label>
+
+      <div class="dialog-actions">
+
+        <button
+          class="primary"
+          type="submit"
+        >
+          متابعة
+        </button>
+
+      </div>
+
+    </form>
+  </dialog>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>
