@@ -70,6 +70,13 @@ Deno.serve(async (req) => {
       const places=(p.data||[]).map((x:any)=>({...x,...pointFromAny(x.coordinates)})); const categories=[...new Set((p.data||[]).map((x:any)=>x.category).filter(Boolean))].sort()
       return json({governorates:g.data||[],districts:d.data||[],subdistricts:s.data||[],places,categories,images:imgs.data||[]})
     }
+
+    if(action==='completion-list'){
+      const r=await sb.from('admin_place_progress').select('place_id,is_complete,updated_at')
+      if(r.error)throw r.error
+      return json({items:r.data||[]})
+    }
+
     if(req.method!=='POST')return json({error:'Method not allowed'},405)
 
     if(action==='upload-image'){
@@ -90,6 +97,17 @@ Deno.serve(async (req) => {
     }
 
     const body=await req.json()
+
+    if(action==='set-completion'){
+      const placeId=String(body.place_id||'')
+      if(!placeId)return json({error:'place_id مطلوب'},400)
+      const exists=await sb.from('places').select('id').eq('id',placeId).maybeSingle();if(exists.error)throw exists.error
+      if(!exists.data)return json({error:'المعلم غير موجود'},404)
+      const r=await sb.from('admin_place_progress').upsert({place_id:placeId,is_complete:!!body.is_complete,updated_at:new Date().toISOString()},{onConflict:'place_id'}).select('place_id,is_complete,updated_at').single()
+      if(r.error)throw r.error
+      return json({ok:true,item:r.data})
+    }
+
     if(action==='create'||action==='update'){
       const place=body.place||{},required=['name_ar','name_ku','name_en','description_ar','description_ku','description_en','category'];for(const k of required)if(!String(place[k]||'').trim())return json({error:`الحقل ${k} مطلوب`},400)
       if(place.priority_score!=null&&(place.priority_score<0||place.priority_score>100))return json({error:'الأولوية يجب أن تكون بين 0 و100'},400)
